@@ -953,6 +953,12 @@ concept input_iterator = input_or_output_iterator<_It> && indirectly_readable<_I
     && requires { typename _Iter_concept<_It>; }
     && derived_from<_Iter_concept<_It>, input_iterator_tag>;
 
+template<class>
+inline constexpr bool enable_lazy_input_iterator = false;
+
+template <class _It>
+concept lazy_input_iterator = input_iterator<_It> && enable_lazy_input_iterator<remove_cvref_t<_It>>;
+
 template <class _It, class _Ty>
 concept output_iterator = input_or_output_iterator<_It> && indirectly_writable<_It, _Ty>
     && requires(_It __i, _Ty&& __t) {

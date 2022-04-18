@@ -484,6 +484,11 @@ _NODISCARD bool operator!=(
 }
 #endif // !_HAS_CXX20
 
+#ifdef __cpp_lib_concepts
+template <class _Elem, class _Traits>
+inline constexpr bool enable_lazy_input_iterator<istreambuf_iterator<_Elem, _Traits>> = true;
+#endif // __cpp_lib_concepts
+
 template <class _Elem, class _Traits>
 class ostreambuf_iterator {
 public:
@@ -1095,6 +1100,7 @@ struct _Counted_iterator_concept_base<_Iter> : _Counted_iterator_category_base<_
 };
 
 template <input_or_output_iterator _Iter>
+requires forward_iterator<_Iter> || lazy_input_iterator<_Iter> || (!input_iterator<_Iter>)
 class counted_iterator : public _Counted_iterator_concept_base<_Iter> {
 public:
     using iterator_type   = _Iter;
