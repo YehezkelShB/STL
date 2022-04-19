@@ -7,6 +7,7 @@
 #include <list>
 #include <memory>
 #include <type_traits>
+#include <streambuf>
 
 #include <range_algorithm_support.hpp>
 using namespace std;
@@ -357,3 +358,12 @@ int main() {
 
     test_P2259();
 }
+
+// Tests for P2578 - Block eager input (non-forward) iterators from counted_iterator
+template <typename I>
+concept CanInstantiateCountedIterator = requires { typename counted_iterator<I>; };
+
+static_assert(!CanInstantiateCountedIterator<std::istream_iterator<char>>);
+static_assert(CanInstantiateCountedIterator<std::istreambuf_iterator<char>>);
+static_assert(CanInstantiateCountedIterator<test::iterator<test::fwd, char>>);
+static_assert(CanInstantiateCountedIterator<test::iterator<test::output, char>>);
