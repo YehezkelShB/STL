@@ -578,3 +578,12 @@ int main() {
 
     test_DevCom_1397309();
 }
+
+// Tests for P2578 - Block eager input (non-forward) iterators from counted_iterator
+template <typename V>
+concept CanInstantiateTakeView = requires { typename ranges::take_view<V>; };
+
+static_assert(!CanInstantiateTakeView<ranges::basic_istream_view<char>>);
+static_assert(CanInstantiateTakeView<ranges::subrange<istreambuf_iterator<char>>>);
+static_assert(CanInstantiateTakeView<test::iterator<test::fwd, char>>);
+static_assert(CanInstantiateTakeView<test::iterator<test::output, char>>);
