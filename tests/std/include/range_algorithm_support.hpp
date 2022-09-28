@@ -611,7 +611,7 @@ namespace test {
 } // namespace test
 
 template <class Element, ::test::CanDifference Diff, ::test::CanCompare Eq, ::test::ProxyRef Proxy, ::test::IsWrapped Wrapped>
-inline constexpr bool std::enable_lazy_input_iterator<::test::iterator<::test::input, Element, Diff, Eq, Proxy, Wrapped>> = true;
+inline constexpr bool std::enable_lazy_weakly_incrementable<::test::iterator<::test::input, Element, Diff, Eq, Proxy, Wrapped>> = true;
 
 template <class Category, class Element, ::test::CanDifference Diff, ::test::CanCompare Eq, ::test::ProxyRef Proxy,
     ::test::IsWrapped Wrapped>

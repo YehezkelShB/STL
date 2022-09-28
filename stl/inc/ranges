@@ -1194,6 +1194,9 @@ namespace ranges {
         }
     };
 
+    template<class _Wi>
+    inline constexpr bool enable_lazy_weakly_incrementable<_Ioterator<_Wi>> = enable_lazy_weakly_incrementable<_Wi>;
+
     template <weakly_incrementable _Wi, semiregular _Bo>
         requires _Weakly_equality_comparable_with<_Wi, _Bo> && copyable<_Wi>
     struct _Iotinel {
@@ -1915,6 +1918,8 @@ namespace ranges {
                     input_iterator_tag>;
         };
 
+    // Must be public to be able to specialize enable_lazy_weakly_incrementable on it
+    public:
         template <bool _Const>
         class _Iterator : public _Category_base<_Maybe_const<_Const, _Vw>> {
         private:
@@ -2163,6 +2168,7 @@ namespace ranges {
             }
         };
 
+    private:
         template <bool _Const>
         class _Sentinel {
         private:
@@ -2306,6 +2312,9 @@ namespace ranges {
     template <class _Rng, class _Fn>
     transform_view(_Rng&&, _Fn) -> transform_view<views::all_t<_Rng>, _Fn>;
 
+    template <class _Rng, class _Fn, bool _Const>
+    inline constexpr bool enable_lazy_weakly_incrementable<transform_view<_Rng, _Fn>::template _Iterator<_Const>> = enable_lazy_weakly_incrementable<iterator_t<_Rng>>;
+
     namespace views {
         struct _Transform_fn {
             // clang-format off
@@ -2332,6 +2341,7 @@ namespace ranges {
     } // namespace views
 
     template <view _Vw>
+    requires forward_range<_Vw> || lazy_weakly_incrementable<iterator_t<_Vw>> || (!input_range<_Vw>)
     class take_view : public view_interface<take_view<_Vw>> {
     private:
         /* [[no_unique_address]] */ _Vw _Range{};
@@ -2543,6 +2553,7 @@ namespace ranges {
 
         public:
             template <viewable_range _Rng>
+            requires forward_range<_Rng> || lazy_weakly_incrementable<iterator_t<_Rng>> || (!input_range<_Rng>)
             _NODISCARD constexpr auto operator()(_Rng&& _Range, range_difference_t<_Rng> _Count) const
                 noexcept(_Choice<_Rng>._No_throw) {
                 constexpr _St _Strat = _Choice<_Rng>._Strategy;
@@ -4381,6 +4392,8 @@ namespace ranges {
                         random_access_iterator_tag, _Iter_cat_t<iterator_t<_Base>>>>;
         };
 
+    // Must be public to be able to specialize enable_lazy_weakly_incrementable on it
+    public:
         template <bool _Const>
         class _Iterator : public _Category_base<_Maybe_const<_Const, _Vw>> {
         private:
@@ -4589,6 +4602,7 @@ namespace ranges {
             }
         };
 
+    private:
         template <bool _Const>
         class _Sentinel {
         private:
@@ -4723,6 +4737,9 @@ namespace ranges {
 
     template <class _Rng, size_t _Index>
     inline constexpr bool enable_borrowed_range<elements_view<_Rng, _Index>> = enable_borrowed_range<_Rng>;
+
+    template <class _Rng, size_t _Index, bool _Const>
+    inline constexpr bool enable_lazy_weakly_incrementable<elements_view<_Rng, _Index>::template _Iterator<_Const>> = enable_lazy_weakly_incrementable<iterator_t<_Rng>>;
 
     template <class _Rng>
     using keys_view = elements_view<_Rng, 0>;

@@ -954,10 +954,10 @@ concept input_iterator = input_or_output_iterator<_It> && indirectly_readable<_I
     && derived_from<_Iter_concept<_It>, input_iterator_tag>;
 
 template<class>
-inline constexpr bool enable_lazy_input_iterator = false;
+inline constexpr bool enable_lazy_weakly_incrementable = false;
 
-template <class _It>
-concept lazy_input_iterator = input_iterator<_It> && enable_lazy_input_iterator<remove_cvref_t<_It>>;
+template <class _Ty>
+concept lazy_weakly_incrementable = weakly_incrementable<_Ty> && enable_lazy_weakly_incrementable<remove_cvref_t<_Ty>>;
 
 template <class _It, class _Ty>
 concept output_iterator = input_or_output_iterator<_It> && indirectly_writable<_It, _Ty>
@@ -3991,6 +3991,10 @@ _NODISCARD _CONSTEXPR17 move_iterator<_Iter> make_move_iterator(_Iter _It) { // 
 }
 
 #ifdef __cpp_lib_concepts
+
+template<class _Iter>
+inline constexpr bool enable_lazy_weakly_incrementable<move_iterator<_Iter>> = enable_lazy_weakly_incrementable<_Iter>;
+
 struct default_sentinel_t {};
 
 inline constexpr default_sentinel_t default_sentinel{};

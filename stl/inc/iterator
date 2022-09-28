@@ -486,7 +486,7 @@ _NODISCARD bool operator!=(
 
 #ifdef __cpp_lib_concepts
 template <class _Elem, class _Traits>
-inline constexpr bool enable_lazy_input_iterator<istreambuf_iterator<_Elem, _Traits>> = true;
+inline constexpr bool enable_lazy_weakly_incrementable<istreambuf_iterator<_Elem, _Traits>> = true;
 #endif // __cpp_lib_concepts
 
 template <class _Elem, class _Traits>
@@ -1075,6 +1075,9 @@ struct iterator_traits<common_iterator<_Iter, _Se>> {
     using reference         = iter_reference_t<_Iter>;
 };
 
+template<class _Iter, class _Se>
+inline constexpr bool enable_lazy_weakly_incrementable<common_iterator<_Iter, _Se>> = enable_lazy_weakly_incrementable<_Iter>;
+
 template <class _Iter>
 struct _Counted_iterator_value_type_base {};
 
@@ -1100,7 +1103,7 @@ struct _Counted_iterator_concept_base<_Iter> : _Counted_iterator_category_base<_
 };
 
 template <input_or_output_iterator _Iter>
-requires forward_iterator<_Iter> || lazy_input_iterator<_Iter> || (!input_iterator<_Iter>)
+requires forward_iterator<_Iter> || lazy_weakly_incrementable<_Iter> || (!input_iterator<_Iter>)
 class counted_iterator : public _Counted_iterator_concept_base<_Iter> {
 public:
     using iterator_type   = _Iter;
@@ -1401,6 +1404,10 @@ struct iterator_traits<counted_iterator<_Iter>> : iterator_traits<_Iter> {
     // clang-format on
     using pointer = conditional_t<contiguous_iterator<_Iter>, add_pointer_t<iter_reference_t<_Iter>>, void>;
 };
+
+template<class _Iter>
+inline constexpr bool enable_lazy_weakly_incrementable<counted_iterator<_Iter>> = enable_lazy_weakly_incrementable<_Iter>;
+
 #endif // __cpp_lib_concepts
 
 _STD_END
