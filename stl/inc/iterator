@@ -1488,6 +1488,15 @@ public:
 
     constexpr lazy_counted_iterator(_Iter _Right, const iter_difference_t<_Iter> _Diff) noexcept(
         is_nothrow_move_constructible_v<_Iter>) // strengthened
+        : _Current(_STD move(_Right)), _Length(_Diff ? _Diff : -1) {
+#if _ITERATOR_DEBUG_LEVEL != 0
+        _STL_VERIFY(_Diff >= 0, "lazy_counted_iterator requires non-negative length n");
+#endif // _ITERATOR_DEBUG_LEVEL != 0
+    }
+
+    constexpr lazy_counted_iterator(_Iter _Right, const iter_difference_t<_Iter> _Diff) noexcept(
+        is_nothrow_move_constructible_v<_Iter>) // strengthened
+            requires random_access_iterator<_Iter>
         : _Current(_STD move(_Right)), _Length(_Diff) {
 #if _ITERATOR_DEBUG_LEVEL != 0
         _STL_VERIFY(_Diff >= 0, "lazy_counted_iterator requires non-negative length n");
@@ -1510,15 +1519,25 @@ public:
     }
 
     // [lazy.counted.iter.access]
-    _NODISCARD constexpr const _Iter& base() const& noexcept {
+    _NODISCARD constexpr const _Iter& base() const& noexcept
+        requires random_access_iterator<_Iter>
+    {
         return _Current;
     }
 
-    _NODISCARD constexpr _Iter base() && noexcept(is_nothrow_move_constructible_v<_Iter>) /* strengthened */ {
+    _NODISCARD constexpr _Iter base() && noexcept(is_nothrow_move_constructible_v<_Iter>) /* strengthened */
+        requires random_access_iterator<_Iter>
+    {
         return _STD move(_Current);
     }
 
     _NODISCARD constexpr iter_difference_t<_Iter> count() const noexcept {
+        return _Length != -1 ? _Length : 0;
+    }
+
+    _NODISCARD constexpr iter_difference_t<_Iter> count() const noexcept
+        requires random_access_iterator<_Iter>
+    {
         return _Length;
     }
 
@@ -1559,6 +1578,17 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _STL_VERIFY(_Length > 0, "lazy_counted_iterator increment beyond end of range");
 #endif // _ITERATOR_DEBUG_LEVEL != 0
+        if (_Length > 1) ++_Current;
+        --_Length;
+        return *this;
+    }
+
+    constexpr lazy_counted_iterator& operator++()
+        requires random_access_iterator<_Iter>
+    {
+#if _ITERATOR_DEBUG_LEVEL != 0
+        _STL_VERIFY(_Length > 0, "lazy_counted_iterator increment beyond end of range");
+#endif // _ITERATOR_DEBUG_LEVEL != 0
         ++_Current;
         --_Length;
         return *this;
@@ -1570,7 +1600,7 @@ public:
 #endif // _ITERATOR_DEBUG_LEVEL != 0
         --_Length;
         _TRY_BEGIN
-        return _Current++;
+        return _Current++; // TODO: what can we return if we don't increment?
 
         _CATCH_ALL
         ++_Length;
@@ -1586,6 +1616,18 @@ public:
         _STL_VERIFY(_Length > 0, "lazy_counted_iterator increment beyond end of range");
 #endif // _ITERATOR_DEBUG_LEVEL != 0
         lazy_counted_iterator _Tmp = *this;
+        if (_Length > 1) ++_Current;
+        --_Length;
+        return _Tmp;
+    }
+
+    constexpr lazy_counted_iterator operator++(int)
+        requires random_access_iterator<_Iter>
+    {
+#if _ITERATOR_DEBUG_LEVEL != 0
+        _STL_VERIFY(_Length > 0, "lazy_counted_iterator increment beyond end of range");
+#endif // _ITERATOR_DEBUG_LEVEL != 0
+        lazy_counted_iterator _Tmp = *this;
         ++_Current;
         --_Length;
         return _Tmp;
@@ -1594,6 +1636,14 @@ public:
     constexpr lazy_counted_iterator& operator--()
         requires bidirectional_iterator<_Iter>
     {
+        if (_Length != 0) --_Current;
+        _Length = count() + 1;
+        return *this;
+    }
+
+    constexpr lazy_counted_iterator& operator--()
+        requires random_access_iterator<_Iter>
+    {
         --_Current;
         ++_Length;
         return *this;
@@ -1601,6 +1651,15 @@ public:
 
     constexpr lazy_counted_iterator operator--(int)
         requires bidirectional_iterator<_Iter>
+    {
+        lazy_counted_iterator _Tmp = *this;
+        if (_Length != 0) --_Current;
+        _Length = count() + 1;
+        return _Tmp;
+    }
+
+    constexpr lazy_counted_iterator operator--(int)
+        requires random_access_iterator<_Iter>
     {
         lazy_counted_iterator _Tmp = *this;
         --_Current;
@@ -1644,17 +1703,17 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _Same_sequence(_Left, _Right);
 #endif // _ITERATOR_DEBUG_LEVEL != 0
-        return _Right.count() - _Left._Length;
+        return _Right.count() - _Left.count();
     }
 
     _NODISCARD_FRIEND constexpr iter_difference_t<_Iter> operator-(
         const lazy_counted_iterator& _Left, default_sentinel_t) noexcept /* strengthened */ {
-        return -_Left._Length;
+        return -_Left.count();
     }
 
     _NODISCARD_FRIEND constexpr iter_difference_t<_Iter> operator-(
         default_sentinel_t, const lazy_counted_iterator& _Right) noexcept /* strengthened */ {
-        return _Right._Length;
+        return _Right.count();
     }
 
     constexpr lazy_counted_iterator& operator-=(const iter_difference_t<_Iter> _Diff)
@@ -1675,12 +1734,12 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _Same_sequence(_Left, _Right);
 #endif // _ITERATOR_DEBUG_LEVEL != 0
-        return _Left._Length == _Right.count();
+        return _Left.count() == _Right.count();
     }
 
     _NODISCARD_FRIEND constexpr bool operator==(const lazy_counted_iterator& _Left, default_sentinel_t) noexcept
     /* strengthened */ {
-        return _Left._Length == 0;
+        return _Left.count() == 0;
     }
 
     template <common_with<_Iter> _Other>
@@ -1689,7 +1748,7 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _Same_sequence(_Left, _Right);
 #endif // _ITERATOR_DEBUG_LEVEL != 0
-        return _Right.count() <=> _Left._Length;
+        return _Right.count() <=> _Left.count();
     }
 
     // [lazy.counted.iter.cust]
@@ -1723,7 +1782,7 @@ public:
             using _CIter = common_type_t<_Iter, _Other>;
             using _CDiff = common_type_t<iter_difference_t<_Iter>, iter_difference_t<_Other>>;
 
-            const _CDiff _Diff = static_cast<_CDiff>(_Left._Length) - static_cast<_CDiff>(_Right.count());
+            const _CDiff _Diff = static_cast<_CDiff>(_Left.count()) - static_cast<_CDiff>(_Right.count());
             if (_Diff < 0) {
                 _STL_VERIFY(
                     static_cast<_CIter>(_Left._Current) == _RANGES next(static_cast<_CIter>(_Right.base()), -_Diff),
@@ -1750,7 +1809,7 @@ public:
 
     constexpr void _Verify_offset(const iter_difference_t<_Iter> _Off) const {
 #if _ITERATOR_DEBUG_LEVEL != 0
-        _STL_VERIFY(_Off <= _Length, "Offset larger than lazy_counted_iterator length");
+        _STL_VERIFY(_Off <= count(), "Offset larger than lazy_counted_iterator length");
 #endif // _ITERATOR_DEBUG_LEVEL != 0
         if constexpr (_Offset_verifiable_v<_Iter>) {
             _Current._Verify_offset(_Off);
