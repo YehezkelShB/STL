@@ -1449,6 +1449,8 @@ struct iterator_traits<counted_iterator<_Iter>> : iterator_traits<_Iter> {
     using pointer = conditional_t<contiguous_iterator<_Iter>, add_pointer_t<iter_reference_t<_Iter>>, void>;
 };
 
+// P2406R2 - lazy_counted_iterator
+
 template <class _Iter>
 struct _Counted_iterator_value_type_base {};
 
@@ -1797,6 +1799,9 @@ template <input_iterator _Iter>
 struct iterator_traits<counted_iterator<_Iter>> : iterator_traits<_Iter> {
     using pointer = conditional_t<contiguous_iterator<_Iter>, add_pointer_t<iter_reference_t<_Iter>>, void>;
 };
+
+// End of P2406R2 - lazy_counted_iterator
+
 #endif // __cpp_lib_concepts
 
 _STD_END
