@@ -1594,13 +1594,13 @@ public:
         return *this;
     }
 
-    constexpr decltype(auto) operator++(int) {
+    constexpr void operator++(int) {
 #if _ITERATOR_DEBUG_LEVEL != 0
         _STL_VERIFY(_Length > 0, "lazy_counted_iterator increment beyond end of range");
 #endif // _ITERATOR_DEBUG_LEVEL != 0
         --_Length;
         _TRY_BEGIN
-        return _Current++; // TODO: what can we return if we don't increment?
+        if (_Length) _Current++;
 
         _CATCH_ALL
         ++_Length;
