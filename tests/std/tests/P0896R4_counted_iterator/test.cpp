@@ -358,3 +358,30 @@ int main() {
 
     test_P2259();
 }
+
+// Tests for P2406R2 - Add lazy_counted_iterator
+template <typename I>
+concept CanInstantiateLazyCountedIterator = requires { typename counted_iterator<I>; };
+
+using LCI = lazy_counted_iterator<simple_forward_iter>;
+using random_access_iter = std::vector<double>::iterator;
+using LCI_RA = lazy_counted_iterator<random_access_iter>;
+
+static_assert(same_as<iterator_traits<simple_forward_iter>::iterator_category, input_iterator_tag>);
+static_assert(forward_iterator<simple_forward_iter>);
+static_assert(forward_iterator<LCI>);
+static_assert(!contiguous_iterator<LCI>);
+static_assert(same_as<LCI::value_type, double>);
+static_assert(same_as<LCI::difference_type, long>);
+static_assert(same_as<LCI::iterator_category, input_iterator_tag>);
+static_assert(same_as<LCI::iterator_concept, forward_iterator_tag>);
+
+static_assert(same_as<iterator_traits<random_access_iter>::iterator_category, random_access_iterator_tag>);
+static_assert(forward_iterator<random_access_iter>);
+static_assert(forward_iterator<LCI_RA>);
+static_assert(!contiguous_iterator<LCI_RA>);
+static_assert(same_as<LCI_RA::value_type, double>);
+static_assert(same_as<LCI_RA::difference_type, long>);
+static_assert(same_as<LCI_RA::iterator_category, input_iterator_tag>);
+static_assert(same_as<LCI_RA::iterator_concept, forward_iterator_tag>);
+static_assert(!same_as<LCI_RA::iterator_concept, random_access_iterator_tag>);
