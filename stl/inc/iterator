@@ -1504,14 +1504,14 @@ public:
         requires convertible_to<const _Other&, _Iter>
     constexpr lazy_counted_iterator(const lazy_counted_iterator<_Other>& _Right) noexcept(
         is_nothrow_constructible_v<_Iter, const _Other&>) // strengthened
-        : _Current(_Right.base()), _Length(_Right.count()) {}
+        : _Current(_Right._Current), _Length(_Right._Length) {}
 
     template <class _Other>
         requires assignable_from<_Iter&, const _Other&>
     constexpr lazy_counted_iterator& operator=(const lazy_counted_iterator<_Other>& _Right) noexcept(
         is_nothrow_assignable_v<_Iter&, const _Other&>) /* strengthened */ {
-        _Current = _Right.base();
-        _Length  = _Right.count();
+        _Current = _Right._Current;
+        _Length  = _Right._Length;
         return *this;
     }
 
@@ -1758,8 +1758,8 @@ public:
 
     template <indirectly_swappable<_Iter> _Other>
     friend constexpr void iter_swap(const lazy_counted_iterator& _Left, const lazy_counted_iterator<_Other>& _Right) noexcept(
-        noexcept(_RANGES iter_swap(_Left._Current, _Right.base()))) {
-        _RANGES iter_swap(_Left._Current, _Right.base());
+        noexcept(_RANGES iter_swap(_Left._Current, _Right._Current))) {
+        _RANGES iter_swap(_Left._Current, _Right._Current);
     }
 
 #if _ITERATOR_DEBUG_LEVEL != 0
@@ -1780,13 +1780,14 @@ public:
             using _CDiff = common_type_t<iter_difference_t<_Iter>, iter_difference_t<_Other>>;
 
             const _CDiff _Diff = static_cast<_CDiff>(_Left.count()) - static_cast<_CDiff>(_Right.count());
+			// TODO: needs special care here
             if (_Diff < 0) {
                 _STL_VERIFY(
-                    static_cast<_CIter>(_Left._Current) == _RANGES next(static_cast<_CIter>(_Right.base()), -_Diff),
+                    static_cast<_CIter>(_Left._Current) == _RANGES next(static_cast<_CIter>(_Right._Current), -_Diff),
                     "lazy_counted_iterators are from different ranges");
             } else {
                 _STL_VERIFY(
-                    _RANGES next(static_cast<_CIter>(_Left._Current), _Diff) == static_cast<_CIter>(_Right.base()),
+                    _RANGES next(static_cast<_CIter>(_Left._Current), _Diff) == static_cast<_CIter>(_Right._Current),
                     "lazy_counted_iterators are from different ranges");
             }
         }
@@ -1797,7 +1798,7 @@ public:
     template <common_with<_Iter> _Other>
     friend constexpr void _Verify_range(const lazy_counted_iterator& _Left, const lazy_counted_iterator<_Other>& _Right) {
         if constexpr (_Range_verifiable_v<_Iter, _Other>) {
-            _Verify_range(_Left._Current, _Right.base());
+            _Verify_range(_Left._Current, _Right._Current);
         }
 #if _ITERATOR_DEBUG_LEVEL != 0
         _Same_sequence(_Left, _Right);
@@ -1834,15 +1835,15 @@ public:
     template <class _Other>
         requires _Wrapped_seekable_v<_Iter, const _Other&>
     constexpr void _Seek_to(const lazy_counted_iterator<_Other>& _It) {
-        _Current._Seek_to(_It.base());
-        _Length = _It.count();
+        _Current._Seek_to(_It._Current);
+        _Length = _It._Length;
     }
 
     template <class _Other>
         requires _Wrapped_seekable_v<_Iter, _Other>
     constexpr void _Seek_to(lazy_counted_iterator<_Other>&& _It) {
-        _Current._Seek_to(_STD move(_It).base());
-        _Length = _It.count();
+        _Current._Seek_to(_STD move(_It)._Current);
+        _Length = _It._Length;
     }
 
 private:
