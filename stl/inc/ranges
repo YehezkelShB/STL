@@ -2962,7 +2962,7 @@ namespace ranges {
     inline constexpr bool enable_borrowed_range<lazy_take_view<_Rng>> = enable_borrowed_range<_Rng>;
 
     namespace views {
-        class _Take_fn {
+        class _Lazy_take_fn {
         private:
             enum class _St {
                 _Empty,
@@ -3033,11 +3033,11 @@ namespace ranges {
                 requires constructible_from<decay_t<_Ty>, _Ty>
             _NODISCARD constexpr auto operator()(_Ty&& _Length) const
                 noexcept(is_nothrow_constructible_v<decay_t<_Ty>, _Ty>) {
-                return _Range_closure<_Take_fn, decay_t<_Ty>>{_STD forward<_Ty>(_Length)};
+                return _Range_closure<_Lazy_take_fn, decay_t<_Ty>>{_STD forward<_Ty>(_Length)};
             }
         };
 
-        _EXPORT_STD inline constexpr _Take_fn lazy_take;
+        _EXPORT_STD inline constexpr _Lazy_take_fn lazy_take;
     } // namespace views
 
 // End of P2406R2 - lazy_counted_iterator
