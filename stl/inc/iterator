@@ -1785,7 +1785,7 @@ public:
         (void) _Right;
 #else // ^^^ workaround / no workaround vvv
 
-        // Per N4901 [lazy_counted.iterator]/3, two lazy_counted_iterators x and y refer to elements of the same sequence iff
+        // Per N4901 [lazy.counted.iterator]/3, two lazy_counted_iterators x and y refer to elements of the same sequence iff
         // for some integer n, next(x.base(), x.count() + n) and next(y.base(), y.count() + n)
         // "refer to the same (possibly past-the-end) element".
         // Iterator equality is a fair proxy for the vaguely-defined "refer to the same element".
