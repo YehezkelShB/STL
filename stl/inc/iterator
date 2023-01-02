@@ -1488,16 +1488,13 @@ public:
 
     constexpr lazy_counted_iterator(_Iter _Right, const iter_difference_t<_Iter> _Diff) noexcept(
         is_nothrow_move_constructible_v<_Iter>) // strengthened
-        : _Current(_STD move(_Right)), _Length(_Diff ? _Diff : -1) {
-#if _ITERATOR_DEBUG_LEVEL != 0
-        _STL_VERIFY(_Diff >= 0, "lazy_counted_iterator requires non-negative length n");
-#endif // _ITERATOR_DEBUG_LEVEL != 0
-    }
-
-    constexpr lazy_counted_iterator(_Iter _Right, const iter_difference_t<_Iter> _Diff) noexcept(
-        is_nothrow_move_constructible_v<_Iter>) // strengthened
-            requires random_access_iterator<_Iter>
-        : _Current(_STD move(_Right)), _Length(_Diff) {
+        : _Current(_STD move(_Right)), _Length([_Diff]{
+            // uglier, but helps with CTAD
+            if constexpr(random_access_iterator<_Iter>)
+                return _Diff;
+            else
+                return _Diff ? _Diff : -1; }()
+            ) {
 #if _ITERATOR_DEBUG_LEVEL != 0
         _STL_VERIFY(_Diff >= 0, "lazy_counted_iterator requires non-negative length n");
 #endif // _ITERATOR_DEBUG_LEVEL != 0
