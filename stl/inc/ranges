@@ -2780,6 +2780,277 @@ namespace ranges {
         _EXPORT_STD inline constexpr _Take_fn take;
     } // namespace views
 
+// P2406R2 - lazy_counted_iterator
+
+    _EXPORT_STD template <view _Vw>
+    class take_view : public view_interface<take_view<_Vw>> {
+    private:
+        /* [[no_unique_address]] */ _Vw _Range{};
+        range_difference_t<_Vw> _Count = 0;
+
+        template <bool _Const, bool _Wrapped = true>
+        class _Sentinel {
+        private:
+            template <bool, bool>
+            friend class _Sentinel;
+
+            using _Base_t        = _Maybe_const<_Const, _Vw>;
+            using _Base_sentinel = _Maybe_wrapped<_Wrapped, sentinel_t<_Base_t>>;
+            template <bool _OtherConst>
+            using _Base_iterator = _Maybe_wrapped<_Wrapped, iterator_t<_Maybe_const<_OtherConst, _Vw>>>;
+            template <bool _OtherConst>
+            using _Counted_iter = counted_iterator<_Base_iterator<_OtherConst>>;
+
+            _Base_sentinel _Last{};
+
+        public:
+            _Sentinel() = default;
+
+            constexpr explicit _Sentinel(_Base_sentinel _Last_) noexcept(
+                is_nothrow_move_constructible_v<_Base_sentinel>) // strengthened
+                : _Last(_STD move(_Last_)) {}
+
+            // clang-format off
+            constexpr _Sentinel(_Sentinel<!_Const, _Wrapped> _That) noexcept(
+                is_nothrow_constructible_v<_Base_sentinel, _Maybe_wrapped<_Wrapped, sentinel_t<_Vw>>>) // strengthened
+                requires _Const && convertible_to<_Maybe_wrapped<_Wrapped, sentinel_t<_Vw>>, _Base_sentinel>
+                : _Last(_STD move(_That._Last)) {}
+            // clang-format on
+
+            _NODISCARD constexpr _Base_sentinel base() const
+                noexcept(is_nothrow_copy_constructible_v<_Base_sentinel>) /* strengthened */ {
+                return _Last;
+            }
+
+            _NODISCARD_FRIEND constexpr bool operator==(const _Counted_iter<_Const>& _Left, const _Sentinel& _Right) {
+                return _Left.count() == 0 || _Left.base() == _Right._Last;
+            }
+
+            template <bool _OtherConst = !_Const>
+                requires sentinel_for<_Base_sentinel, _Base_iterator<_OtherConst>>
+            _NODISCARD_FRIEND constexpr bool operator==(
+                const _Counted_iter<_OtherConst>& _Left, const _Sentinel& _Right) {
+                return _Left.count() == 0 || _Left.base() == _Right._Last;
+            }
+
+            using _Prevent_inheriting_unwrap = _Sentinel;
+
+            // clang-format off
+            _NODISCARD constexpr auto _Unwrapped() const&
+                noexcept(noexcept(_Sentinel<_Const, false>{_Last._Unwrapped()}))
+                requires _Wrapped && _Unwrappable_sentinel_for<sentinel_t<_Base_t>, const iterator_t<_Base_t>&> {
+                // clang-format on
+                return _Sentinel<_Const, false>{_Last._Unwrapped()};
+            }
+            // clang-format off
+            _NODISCARD constexpr auto _Unwrapped() &&
+                noexcept(noexcept(_Sentinel<_Const, false>{_STD move(_Last)._Unwrapped()}))
+                requires _Wrapped && _Unwrappable_sentinel_for<sentinel_t<_Base_t>, iterator_t<_Base_t>> {
+                // clang-format on
+                return _Sentinel<_Const, false>{_STD move(_Last)._Unwrapped()};
+            }
+
+            static constexpr bool _Unwrap_when_unverified = _Do_unwrap_when_unverified_v<iterator_t<_Base_t>>;
+
+            constexpr void _Seek_to(const _Sentinel<_Const, false>& _That)
+                requires _Wrapped
+            {
+                _Seek_wrapped(_Last, _That._Last);
+            }
+            constexpr void _Seek_to(_Sentinel<_Const, false>&& _That)
+                requires _Wrapped
+            {
+                _Seek_wrapped(_Last, _STD move(_That._Last));
+            }
+        };
+
+    public:
+        // clang-format off
+        take_view() requires default_initializable<_Vw> = default;
+        // clang-format on
+
+        constexpr take_view(_Vw _Range_, const range_difference_t<_Vw> _Count_) noexcept(
+            is_nothrow_move_constructible_v<_Vw>) // strengthened
+            : _Range(_STD move(_Range_)), _Count{_Count_} {}
+
+        _NODISCARD constexpr _Vw base() const& noexcept(is_nothrow_copy_constructible_v<_Vw>) /* strengthened */
+            requires copy_constructible<_Vw>
+        {
+            return _Range;
+        }
+        _NODISCARD constexpr _Vw base() && noexcept(is_nothrow_move_constructible_v<_Vw>) /* strengthened */ {
+            return _STD move(_Range);
+        }
+
+        // clang-format off
+        _NODISCARD constexpr auto begin() requires (!_Simple_view<_Vw>) {
+            // clang-format on
+            if constexpr (sized_range<_Vw>) {
+                if constexpr (random_access_range<_Vw>) {
+                    return _RANGES begin(_Range);
+                } else {
+                    const auto _Size = static_cast<range_difference_t<_Vw>>(size());
+                    return counted_iterator(_RANGES begin(_Range), _Size);
+                }
+            } else {
+                return counted_iterator(_RANGES begin(_Range), _Count);
+            }
+        }
+
+        _NODISCARD constexpr auto begin() const
+            requires range<const _Vw>
+        {
+            if constexpr (sized_range<const _Vw>) {
+                if constexpr (random_access_range<const _Vw>) {
+                    return _RANGES begin(_Range);
+                } else {
+                    const auto _Size = static_cast<range_difference_t<_Vw>>(size());
+                    return counted_iterator(_RANGES begin(_Range), _Size);
+                }
+            } else {
+                return counted_iterator(_RANGES begin(_Range), _Count);
+            }
+        }
+
+        // clang-format off
+        _NODISCARD constexpr auto end() requires (!_Simple_view<_Vw>) {
+            // clang-format on
+            if constexpr (sized_range<_Vw>) {
+                if constexpr (random_access_range<_Vw>) {
+                    return _RANGES begin(_Range) + static_cast<range_difference_t<_Vw>>(size());
+                } else {
+                    return default_sentinel;
+                }
+            } else {
+                return _Sentinel<false>{_RANGES end(_Range)};
+            }
+        }
+
+        _NODISCARD constexpr auto end() const
+            requires range<const _Vw>
+        {
+            if constexpr (sized_range<const _Vw>) {
+                if constexpr (random_access_range<const _Vw>) {
+                    return _RANGES begin(_Range) + static_cast<range_difference_t<_Vw>>(size());
+                } else {
+                    return default_sentinel;
+                }
+            } else {
+                return _Sentinel<true>{_RANGES end(_Range)};
+            }
+        }
+
+        _NODISCARD constexpr auto size()
+            requires sized_range<_Vw>
+        {
+            const auto _Length = _RANGES size(_Range);
+            return (_STD min)(_Length, static_cast<decltype(_Length)>(_Count));
+        }
+
+        _NODISCARD constexpr auto size() const
+            requires sized_range<const _Vw>
+        {
+            const auto _Length = _RANGES size(_Range);
+            return (_STD min)(_Length, static_cast<decltype(_Length)>(_Count));
+        }
+    };
+
+    template <class _Rng>
+    take_view(_Rng&&, range_difference_t<_Rng>) -> take_view<views::all_t<_Rng>>;
+
+    template <class _Rng>
+    inline constexpr bool enable_borrowed_range<take_view<_Rng>> = enable_borrowed_range<_Rng>;
+
+    namespace views {
+        template <class>
+        inline constexpr bool _Is_subrange = false;
+        template <class _It, class _Se, subrange_kind _Ki>
+        inline constexpr bool _Is_subrange<subrange<_It, _Se, _Ki>> = true;
+
+        template <class _Rng>
+        concept _Random_sized_range = random_access_range<_Rng> && sized_range<_Rng>;
+
+        class _Take_fn {
+        private:
+            enum class _St {
+                _Empty,
+                _Reconstruct_span,
+                _Reconstruct_string_view,
+                _Reconstruct_iota_view,
+                _Reconstruct_subrange,
+                _Take_view
+            };
+
+            template <class _Rng>
+            _NODISCARD static _CONSTEVAL _Choice_t<_St> _Choose() noexcept {
+                using _Ty = remove_cvref_t<_Rng>;
+
+                if constexpr (_Is_specialization_v<_Ty, empty_view>) {
+                    return {_St::_Empty, true};
+                } else if constexpr (_Is_span_v<_Ty>) {
+                    return {_St::_Reconstruct_span, true};
+                } else if constexpr (_Is_specialization_v<_Ty, basic_string_view>) {
+                    return {_St::_Reconstruct_string_view, true};
+                } else if constexpr (_Random_sized_range<_Ty> && _Is_specialization_v<_Ty, iota_view>) {
+                    return {_St::_Reconstruct_iota_view,
+                        noexcept(_RANGES begin(_STD declval<_Rng&>()) + _RANGES distance(_STD declval<_Rng&>()))};
+                } else if constexpr (_Random_sized_range<_Ty> && _Is_subrange<_Ty>) {
+                    return {_St::_Reconstruct_subrange,
+                        noexcept(subrange(_RANGES begin(_STD declval<_Rng&>()),
+                            _RANGES begin(_STD declval<_Rng&>()) + _RANGES distance(_STD declval<_Rng&>())))};
+                } else {
+                    return {_St::_Take_view, noexcept(take_view(_STD declval<_Rng>(), range_difference_t<_Rng>{0}))};
+                }
+            }
+
+            template <class _Rng>
+            static constexpr _Choice_t<_St> _Choice = _Choose<_Rng>();
+
+        public:
+            template <viewable_range _Rng>
+            _NODISCARD constexpr auto operator()(_Rng&& _Range, range_difference_t<_Rng> _Count) const
+                noexcept(_Choice<_Rng>._No_throw) {
+                constexpr _St _Strat = _Choice<_Rng>._Strategy;
+
+                if constexpr (_Strat == _St::_Empty) {
+                    // it's an empty_view: return another empty view
+                    return remove_cvref_t<_Rng>{};
+                } else if constexpr (_Strat == _St::_Take_view) {
+                    return take_view(_STD forward<_Rng>(_Range), _Count);
+                } else {
+                    // it's a "reconstructible range"; return the same kind of range with a restricted extent
+                    _Count            = (_STD min)(_RANGES distance(_Range), _Count);
+                    const auto _First = _RANGES begin(_Range);
+
+                    if constexpr (_Strat == _St::_Reconstruct_span) {
+                        return span(_First, _First + _Count);
+                    } else if constexpr (_Strat == _St::_Reconstruct_string_view) {
+                        return remove_cvref_t<_Rng>(_First, _First + _Count);
+                    } else if constexpr (_Strat == _St::_Reconstruct_iota_view) {
+                        using _Vt = range_value_t<_Rng>;
+                        return iota_view<_Vt, _Vt>(_First, _First + _Count);
+                    } else if constexpr (_Strat == _St::_Reconstruct_subrange) {
+                        return subrange(_First, _First + _Count);
+                    } else {
+                        static_assert(_Always_false<_Rng>, "Should be unreachable");
+                    }
+                }
+            }
+
+            template <class _Ty>
+                requires constructible_from<decay_t<_Ty>, _Ty>
+            _NODISCARD constexpr auto operator()(_Ty&& _Length) const
+                noexcept(is_nothrow_constructible_v<decay_t<_Ty>, _Ty>) {
+                return _Range_closure<_Take_fn, decay_t<_Ty>>{_STD forward<_Ty>(_Length)};
+            }
+        };
+
+        _EXPORT_STD inline constexpr _Take_fn take;
+    } // namespace views
+
+// End of P2406R2 - lazy_counted_iterator
+
+
     _EXPORT_STD template <view _Vw, class _Pr>
         requires input_range<_Vw> && is_object_v<_Pr> && indirect_unary_predicate<const _Pr, iterator_t<_Vw>>
     class take_while_view : public view_interface<take_while_view<_Vw, _Pr>> {
