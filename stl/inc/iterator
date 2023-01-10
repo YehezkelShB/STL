@@ -1493,6 +1493,7 @@ public:
         : _Current(_STD move(_Right)), _Length(_Diff) {
 #if _ITERATOR_DEBUG_LEVEL != 0
         _STL_VERIFY(_Diff >= 0, "lazy_counted_iterator requires non-negative length n");
+        if (!_Diff) _Length = -1;
 #endif // _ITERATOR_DEBUG_LEVEL != 0
     }
 
@@ -1500,14 +1501,14 @@ public:
         requires convertible_to<const _Other&, _Iter>
     constexpr lazy_counted_iterator(const lazy_counted_iterator<_Other>& _Right) noexcept(
         is_nothrow_constructible_v<_Iter, const _Other&>) // strengthened
-        : _Current(_Right._Base()), _Length(_Right.count()) {}
+        : _Current(_Right._Base()), _Length(_Right._Count()) {}
 
     template <class _Other>
         requires assignable_from<_Iter&, const _Other&>
     constexpr lazy_counted_iterator& operator=(const lazy_counted_iterator<_Other>& _Right) noexcept(
         is_nothrow_assignable_v<_Iter&, const _Other&>) /* strengthened */ {
         _Current = _Right._Base();
-        _Length  = _Right.count();
+        _Length  = _Right._Count();
         return *this;
     }
 
@@ -1522,8 +1523,17 @@ public:
         return _STD move(_Current);
     }
 
-    _NODISCARD constexpr iter_difference_t<_Iter> count() const noexcept {
+    // For some usages, we need to observe the -1 state; provide an internal accessor for it
+    _NODISCARD constexpr iter_difference_t<_Iter> _Count() const noexcept {
         return _Length;
+    }
+
+    _NODISCARD constexpr iter_difference_t<_Iter> count() const noexcept {
+#if _ITERATOR_DEBUG_LEVEL != 0
+        return _Length == -1 ? 0 : _Length;
+#else
+        return _Length;
+#endif // _ITERATOR_DEBUG_LEVEL != 0
     }
 
     // [counted.iter.elem]
@@ -1586,17 +1596,17 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _Same_sequence(_Left, _Right);
 #endif // _ITERATOR_DEBUG_LEVEL != 0
-        return _Right.count() - _Left._Length;
+        return _Right.count() - _Left.count();
     }
 
     _NODISCARD_FRIEND constexpr iter_difference_t<_Iter> operator-(
         const lazy_counted_iterator& _Left, default_sentinel_t) noexcept /* strengthened */ {
-        return -_Left._Length;
+        return -_Left.count();
     }
 
     _NODISCARD_FRIEND constexpr iter_difference_t<_Iter> operator-(
         default_sentinel_t, const lazy_counted_iterator& _Right) noexcept /* strengthened */ {
-        return _Right._Length;
+        return _Right.count();
     }
 
     // [counted.iter.cmp]
@@ -1606,12 +1616,12 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _Same_sequence(_Left, _Right);
 #endif // _ITERATOR_DEBUG_LEVEL != 0
-        return _Left._Length == _Right.count();
+        return _Left.count() == _Right.count();
     }
 
     _NODISCARD_FRIEND constexpr bool operator==(const lazy_counted_iterator& _Left, default_sentinel_t) noexcept
     /* strengthened */ {
-        return _Left._Length == 0;
+        return _Left.count() == 0;
     }
 
     template <common_with<_Iter> _Other>
@@ -1620,7 +1630,7 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _Same_sequence(_Left, _Right);
 #endif // _ITERATOR_DEBUG_LEVEL != 0
-        return _Right.count() <=> _Left._Length;
+        return _Right.count() <=> _Left.count();
     }
 
     // [counted.iter.cust]
@@ -1647,16 +1657,14 @@ public:
 #else // ^^^ workaround / no workaround vvv
 
         // Per Nxxxx [lazy.counted.iterator]/3, two lazy_counted_iterators x and y refer to elements of the same sequence iff
-        // for some integer n, next(x._Base(), x.count() + n) and next(y._Base(), y.count() + n)
+        // for some integer n, next(x.current, x.count() + n) and next(y.current, y.count() + n)
         // "refer to the same (possibly past-the-end) element".
         // Iterator equality is a fair proxy for the vaguely-defined "refer to the same element".
         if constexpr (forward_iterator<_Iter> && forward_iterator<_Other>) {
             using _CIter = common_type_t<_Iter, _Other>;
             using _CDiff = common_type_t<iter_difference_t<_Iter>, iter_difference_t<_Other>>;
 
-            const _CDiff _Diff = static_cast<_CDiff>(_Left._Length) - static_cast<_CDiff>(_Right.count());
-            // TODO: needs special care here
-            // 
+            const _CDiff _Diff = static_cast<_CDiff>(_Left._Count()) - static_cast<_CDiff>(_Right._Count());
             if (_Diff < 0) {
                 _STL_VERIFY(
                     static_cast<_CIter>(_Left._Current) == _RANGES next(static_cast<_CIter>(_Right._Base()), -_Diff),
@@ -1683,7 +1691,7 @@ public:
 
     constexpr void _Verify_offset(const iter_difference_t<_Iter> _Off) const {
 #if _ITERATOR_DEBUG_LEVEL != 0
-        _STL_VERIFY(_Off <= _Length, "Offset larger than lazy_counted_iterator length");
+        _STL_VERIFY(_Off <= count(), "Offset larger than lazy_counted_iterator length");
 #endif // _ITERATOR_DEBUG_LEVEL != 0
         if constexpr (_Offset_verifiable_v<_Iter>) {
             _Current._Verify_offset(_Off);
@@ -1712,14 +1720,14 @@ public:
         requires _Wrapped_seekable_v<_Iter, const _Other&>
     constexpr void _Seek_to(const lazy_counted_iterator<_Other>& _It) {
         _Current._Seek_to(_It._Base());
-        _Length = _It.count();
+        _Length = _It._Count();
     }
 
     template <class _Other>
         requires _Wrapped_seekable_v<_Iter, _Other>
     constexpr void _Seek_to(lazy_counted_iterator<_Other>&& _It) {
         _Current._Seek_to(_STD move(_It)._Base());
-        _Length = _It.count();
+        _Length = _It._Count();
     }
 
 private:
