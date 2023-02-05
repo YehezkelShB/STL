@@ -1449,39 +1449,36 @@ struct iterator_traits<counted_iterator<_Iter>> : iterator_traits<_Iter> {
     using pointer = conditional_t<contiguous_iterator<_Iter>, add_pointer_t<iter_reference_t<_Iter>>, void>;
 };
 
-// P2406R2 - lazy_counted_iterator
+// P2406R3 - lazy_counted_iterator
 
 template <class _Iter>
-struct _Lazy_counted_iterator_value_type_base {};
-
-template <indirectly_readable _Iter>
-struct _Lazy_counted_iterator_value_type_base<_Iter> {
-    using value_type = iter_value_t<_Iter>;
-};
+struct _Lazy_counted_iterator_category_base;
 
 template <class _Iter>
-struct _Lazy_counted_iterator_category_base : _Lazy_counted_iterator_value_type_base<_Iter> {};
-
-template <_Has_member_iterator_category _Iter>
-struct _Lazy_counted_iterator_category_base<_Iter> : _Lazy_counted_iterator_value_type_base<_Iter> {
-    using iterator_category = conditional_t<derived_from<_Iter::iterator_category, forward_iterator_tag>,
-        forward_iterator_tag, _Iter::iterator_category>;
+    requires requires { typename _Iter_cat_t<_Iter>; }
+struct _Lazy_counted_iterator_category_base<_Iter> {
+    using iterator_category = conditional_t<derived_from<_Iter_cat_t<_Iter>, forward_iterator_tag>,
+        forward_iterator_tag, _Iter_cat_t<_Iter>>;
 };
 
-template <class _Iter>
-struct _Lazy_counted_iterator_concept_base : _Lazy_counted_iterator_category_base<_Iter> {};
-
-template <_Has_member_iterator_concept _Iter>
-struct _Lazy_counted_iterator_concept_base<_Iter> : _Lazy_counted_iterator_category_base<_Iter> {
-    using iterator_concept = conditional_t<derived_from< _Iter::iterator_concept, forward_iterator_tag>,
-        forward_iterator_tag,  _Iter::iterator_concept>;
-};
-
-_EXPORT_STD template <input_or_output_iterator _Iter>
-class lazy_counted_iterator : public _Lazy_counted_iterator_concept_base<_Iter> {
+_EXPORT_STD template <input_iterator _Iter>
+class lazy_counted_iterator : public _Lazy_counted_iterator_category_base<_Iter> {
 public:
     using iterator_type   = _Iter;
     using difference_type = iter_difference_t<_Iter>;
+    using value_type = iter_value_t<_Iter>;
+
+private:
+    static constexpr auto _Get_iter_concept() {
+        if constexpr (forward_iterator<_Iter>) {
+            return forward_iterator_tag{};
+        } else {
+            return input_iterator_tag{};
+        }
+    }
+
+public:
+    using iterator_concept = decltype(_Get_iter_concept());
 
     // [counted.iter.const]
     // clang-format off
@@ -1635,9 +1632,7 @@ public:
 
     // [counted.iter.cust]
     _NODISCARD_FRIEND constexpr iter_rvalue_reference_t<_Iter> iter_move(const lazy_counted_iterator& _Right) noexcept(
-        noexcept(_RANGES iter_move(_Right._Current)))
-        requires input_iterator<_Iter>
-    {
+        noexcept(_RANGES iter_move(_Right._Current))) {
         return _RANGES iter_move(_Right._Current);
     }
 
@@ -1735,7 +1730,7 @@ private:
     iter_difference_t<_Iter> _Length = 0;
 };
 
-// End of P2406R2 - lazy_counted_iterator
+// End of P2406R3 - lazy_counted_iterator
 
 #endif // __cpp_lib_concepts
 
