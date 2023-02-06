@@ -8,6 +8,7 @@
 #include <memory>
 #include <type_traits>
 #include <forward_list>
+#include <sstream>
 
 #include <range_algorithm_support.hpp>
 using namespace std;
@@ -344,6 +345,54 @@ void test_P2259() {
     assert(ri->m == 1);
 }
 
+void test_P2406() {
+    {
+        auto iss = std::istringstream("0 1 2");
+        for (auto i : ranges::istream_view<int>(iss)
+            | views::take(1))
+            assert(i == 0);
+        auto i = 0;
+        iss >> i;
+        assert(i == 2); // User expects i == 1
+    }
+    {
+        auto iss = std::istringstream("0 1 2");
+        for (auto i : ranges::istream_view<int>(iss)
+            | views::lazy_take(1))
+            assert(i == 0);
+        auto i = 0;
+        iss >> i;
+        assert(i == 1);
+    }
+}
+
+void test_lazy_counted_iterator()
+{
+    { // test lazy_counted_iterator with input_iterator
+        auto iss = std::istringstream("0 1 2");
+        for (auto i : ranges::istream_view<int>(iss)
+            | views::lazy_take(1))
+            assert(i == 0);
+        auto i = 0;
+        iss >> i;
+        assert(i == 1);
+    }
+    { // test lazy_counted_iterator with forward_iterator
+        auto v = vector<int> { 0, 1, 2 };
+        auto ci = lazy_counted_iterator { v.begin(), 3 };
+        assert(*ci == 0);
+        ++ci;
+        assert(*ci == 1);
+        assert(ci == (lazy_counted_iterator { ranges::next(v.begin()), 2 }));
+        ++ci;
+        assert(*ci == 2);
+        assert(ci == (lazy_counted_iterator { ranges::next(v.begin(), 2), 1 }));
+        ++ci;
+        // Exercise _Same_sequence on count=-1
+        assert(ci == (lazy_counted_iterator { ranges::next(v.begin(), 3), 0 }));
+    }
+}
+
 int main() {
     STATIC_ASSERT(with_writable_iterators<instantiator, int>::call());
     with_writable_iterators<instantiator, int>::call();
@@ -358,6 +407,8 @@ int main() {
     }
 
     test_P2259();
+    test_P2406();
+    test_lazy_counted_iterator();
 }
 
 // validate that lazy_counted_iterator<vector<int>::iterator> is forward_iterator at most
@@ -372,4 +423,10 @@ STATIC_ASSERT(input_iterator<lazy_counted_iterator<istream_iterator<int>>>);
 STATIC_ASSERT(same_as<lazy_counted_iterator<list<int>::iterator>::iterator_category, forward_iterator_tag>);
 STATIC_ASSERT(same_as<lazy_counted_iterator<forward_list<int>::iterator>::iterator_category, forward_iterator_tag>);
 STATIC_ASSERT(same_as<lazy_counted_iterator<istream_iterator<int>>::iterator_category, input_iterator_tag>);
+
+// validate that lazy_counted_iterator::operator++(int) returns void for input_iterator
+STATIC_ASSERT(same_as<void, decltype(declval<lazy_counted_iterator<istream_iterator<int>>>().operator++(0))>);
+
+// validate that lazy_counted_iterator::operator++(int) returns lazy_counted_iterator for forward_iterator
+STATIC_ASSERT(same_as<lazy_counted_iterator<list<int>::iterator>, decltype(declval<lazy_counted_iterator<list<int>::iterator>>().operator++(0))>);
 
