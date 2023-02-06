@@ -1452,7 +1452,7 @@ struct iterator_traits<counted_iterator<_Iter>> : iterator_traits<_Iter> {
 // P2406R3 - lazy_counted_iterator
 
 template <class _Iter>
-struct _Lazy_counted_iterator_category_base;
+struct _Lazy_counted_iterator_category_base {};
 
 template <class _Iter>
     requires requires { typename _Iter_cat_t<_Iter>; }
