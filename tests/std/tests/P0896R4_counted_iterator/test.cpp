@@ -7,6 +7,7 @@
 #include <list>
 #include <memory>
 #include <type_traits>
+#include <forward_list>
 
 #include <range_algorithm_support.hpp>
 using namespace std;
@@ -358,3 +359,17 @@ int main() {
 
     test_P2259();
 }
+
+// validate that lazy_counted_iterator<vector<int>::iterator> is forward_iterator at most
+STATIC_ASSERT(forward_iterator<lazy_counted_iterator<vector<int>::iterator>>);
+STATIC_ASSERT(!random_access_iterator<lazy_counted_iterator<vector<int>::iterator>>);
+STATIC_ASSERT(forward_iterator<lazy_counted_iterator<list<int>::iterator>>);
+STATIC_ASSERT(!bidirectional_iterator<lazy_counted_iterator<list<int>::iterator>>);
+STATIC_ASSERT(forward_iterator<lazy_counted_iterator<forward_list<int>::iterator>>);
+STATIC_ASSERT(input_iterator<lazy_counted_iterator<istream_iterator<int>>>);
+
+// validate that lazy_counted_iterator preserves iterator_category of the underlying iterator but not higher than forward_iterator_tag
+STATIC_ASSERT(same_as<lazy_counted_iterator<list<int>::iterator>::iterator_category, forward_iterator_tag>);
+STATIC_ASSERT(same_as<lazy_counted_iterator<forward_list<int>::iterator>::iterator_category, forward_iterator_tag>);
+STATIC_ASSERT(same_as<lazy_counted_iterator<istream_iterator<int>>::iterator_category, input_iterator_tag>);
+
