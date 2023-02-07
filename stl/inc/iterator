@@ -1564,15 +1564,7 @@ public:
 #if _ITERATOR_DEBUG_LEVEL != 0
         _STL_VERIFY(_Length > 0, "lazy_counted_iterator increment beyond end of range");
 #endif // _ITERATOR_DEBUG_LEVEL != 0
-        --_Length;
-        _TRY_BEGIN
-        if (_Length) _Current++;
-
-        _CATCH_ALL
-        ++_Length;
-
-        _RERAISE;
-        _CATCH_END
+        ++*this;
     }
 
     constexpr lazy_counted_iterator operator++(int)
